@@ -1,0 +1,9 @@
+# Credenciais e dados locais — NUNCA versionar
+.env
+*.db
+*.db-wal
+*.db-shm
+*.log
+radar_dados.json
+__pycache__/
+*.pyc

@@ -1,0 +1,30 @@
+# ============================================================
+# Servico systemd para rodar o bot 24h em VPS/servidor Linux
+#
+# COMO INSTALAR (na VPS, como root):
+#   1. cp bot.py /opt/insider-bot/bot.py
+#   2. cp insider-bot.service /etc/systemd/system/
+#   3. systemctl daemon-reload
+#   4. systemctl enable insider-bot     <- inicia sozinho ao ligar
+#   5. systemctl start insider-bot      <- inicia agora
+#
+# COMANDOS UTEIS:
+#   systemctl status insider-bot        <- ver se esta rodando
+#   journalctl -u insider-bot -f        <- ver os logs ao vivo
+#   systemctl restart insider-bot       <- reiniciar
+# ============================================================
+
+[Unit]
+Description=Bot de Alertas - Rastreador de Insider Solana
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/insider-bot
+ExecStart=/usr/bin/python3 /opt/insider-bot/bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

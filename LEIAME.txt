@@ -1,0 +1,281 @@
+============================================================
+ BOT DE ALERTAS — RASTREADOR DE INSIDER (SOLANA)
+ Guia de instalação em 5 minutos
+============================================================
+
+O QUE O BOT FAZ
+---------------
+Monitora 24h as wallets do esquema de insider e te envia
+uma mensagem no Telegram quando detecta:
+
+  🟢 COMPRA              — insider comprou um token
+  🔴 VENDA               — insider vendeu/despejou um token
+  🚨 ALOCAÇÃO DE INSIDER — tokens chegaram SEM compra
+                           (o sinal mais importante: moeda
+                           nova distribuída antes do pump!)
+  💰 LUCRO RECOLHIDO     — USDC voltando para a wallet central
+
+Cada alerta traz: nome da moeda, quantidade, valor em USD,
+qual wallet moveu, horário e links p/ Solscan + DexScreener.
+
+WALLETS MONITORADAS (já configuradas no bot)
+--------------------------------------------
+  🎯 MESTRE ........ gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw
+  🏦 CENTRAL ....... BNSTDRDERgzuBJ7kY6UJ1fWaSM1Pqixx8Ljn275Wv5zX
+  🔀 SUB-WALLET 1 .. 9kaZr3qwWX1bQYGwVWzsA5yTZZitCPrxmoKhNJPip7Z2
+  🔀 SUB-WALLET 2 .. 5zoQMNvWoVRowLkc83FFw7JYj9v1tv4WK8GwoFioNxXc
+  (+ conta USDC da central, para detectar lucro)
+
+============================================================
+ PASSO 1 — Criar o bot no Telegram (2 min)
+============================================================
+1. Abra o Telegram e procure por:  @BotFather
+2. Envie o comando:  /newbot
+3. Escolha um nome (ex: Radar Insider)
+4. Escolha um username terminando em "bot" (ex: radarinsider_seunome_bot)
+5. O BotFather responde com um TOKEN parecido com:
+      <BOT_TOKEN do arquivo .env>
+   → COPIE esse token
+
+============================================================
+ PASSO 2 — Descobrir o CHAT_ID DO GRUPO (2 min)
+============================================================
+O BOT_TOKEN já veio preenchido no bot.py. Falta só o ID do
+GRUPO (que é um número NEGATIVO, ex: -100xxxxxxxxxx).
+
+Jeito fácil — use o script pronto:
+1. Adicione o seu bot DENTRO do grupo do Telegram
+2. Envie qualquer mensagem no grupo (ex: "oi" ou /start)
+3. No terminal, rode:
+      python pegar_chat_id.py
+4. O script mostra o ID do grupo marcado com uma seta
+5. Copie o número negativo
+
+Jeito manual (alternativa):
+1. Abra no navegador (com o bot já dentro do grupo e uma
+   mensagem enviada lá):
+      https://api.telegram.org/botSEU_TOKEN/getUpdates
+2. Procure por:  "chat":{"id":-100xxxxxxxxx,"title":"Nome do Grupo"
+3. Copie o número negativo (COM o sinal de menos)
+
+Se nada aparecer: fale com @BotFather → /setprivacy →
+escolha seu bot → Disable → envie outra mensagem no grupo
+e repita.
+
+============================================================
+ PASSO 3 — Configurar o bot (30 seg)
+============================================================
+Abra o arquivo bot.py em qualquer editor (Bloco de Notas serve)
+e preencha a linha do CHAT_ID:
+
+   CHAT_ID = "-100xxxxxxxxxx"    ← id do grupo (negativo)
+
+(O BOT_TOKEN já está preenchido)
+
+============================================================
+ PASSO 4 — Rodar
+============================================================
+No terminal (Prompt de Comando / PowerShell / Terminal):
+
+   pip install -r requirements.txt
+   python bot.py
+
+Pronto! Você recebe a ativação no Telegram.
+Deixe a janela aberta. Para parar: Ctrl+C ou feche o painel
+(os dados são salvos automaticamente nos dois casos).
+
+⚠️ IMPORTANTE (v4.1+): a pasta radar/ TEM que ficar ao lado do
+bot.py — o código agora é modular. Ao atualizar, copie bot.py
+E a pasta radar/ juntos. Seu radar_dados.json NÃO é tocado.
+
+🧹 v4.5 — LIMPEZA AGRESSIVA DE WALLETS (2 camadas):
+1) PODA "SÓ RECEBE" EM 1 DIA: wallet com 1+ dia no radar que
+   NUNCA vendeu -> arquivo (só recebe token = não dá sinal).
+2) TETO DURO: no máximo MAX_WALLETS_ATIVAS sub-wallets ativas.
+   Passou? As de MENOR valor (sem venda, mais paradas) saem na
+   hora. Vendedoras e recentes ficam. O radar NUNCA mais incha.
+Nada é apagado: arquivadas voltam sozinhas se operarem junto
+com o esquema. Ajustes em radar/config.py:
+  PODA_SO_RECEBE_DIAS = 1    → dias de carência p/ vender (0 desliga)
+  MAX_WALLETS_ATIVAS = 800   → teto de sub-wallets ativas (0 desliga)
+  BONUS_VENDEDORA_DIAS = 3   → vendedoras têm prioridade no rodízio
+O JSON também passou por dieta: clusters velhos, cache vencido
+e fichas de wallets mortas são limpos a cada save.
+
+🪙 v4.8 — RADAR DE MOEDAS (a grande mudança):
+Wallets do esquema são DESCARTÁVEIS (financia, compra, abandona).
+Agora elas são só SENSORES: cada MOEDA que o esquema toca entra
+num radar próprio e é seguida com vida independente — mesmo
+depois da wallet morrer:
+  📈 MOEDA DO ESQUEMA BATEU 2x/5x/10x  (marcos de preço)
+  💀 MOEDA DO ESQUEMA DERRETEU  (-80% do pico = provável dump)
+Tudo via DexScreener (API grátis, ZERO RPC) — alivia os RPCs.
+O painel ganhou o cartão 🪙 MOEDAS (quantas estão vivas no radar).
+Ajustes em radar/config.py:
+  MOEDAS_MAX = 300        → teto de moedas acompanhadas
+  MOEDA_TTL_DIAS = 3      → aposenta moeda parada após X dias
+  MARCOS_MOEDA = (2, 5, 10) → múltiplos que disparam alerta
+
+🧬 v5.0 — FEATURE STORE + SCORING + AUTOAVALIAÇÃO:
+O radar ganhou memória de longo prazo e nota própria:
+  🗄️ radar_historico.db — banco SQLite IMUTÁVEL criado sozinho
+     na 1ª execução (ao lado do bot.py). Guarda tokens, alertas
+     enviados, ROI real, reputação de wallets e o grafo de
+     relações. NUNCA é podado nem apagado — diferente do
+     radar_dados.json (estado vivo, que continua leve).
+  🎯 SCORE 0-100 em todo alerta de moeda nova, detalhado:
+     reputação do deployer (20) + cluster (15) + contrato (15)
+     + idade (10) + mcap (10) + grafo (15) + momentum (15).
+  🏅 REPUTAÇÃO BAYESIANA — cada wallet acumula histórico de
+     acertos (moeda que fez ≥2x); prior neutro de 50% converge
+     p/ a taxa real conforme o histórico cresce.
+  🕸️ GRAFO DE RELAÇÕES — co-assinaturas, financiamentos e
+     recebimentos viram arestas; quanto mais perto do núcleo
+     (MESTRE/CRIADOR/RESERVA/CENTRAL), maior o score propagado.
+     USA networkx SE instalado (pip install -r requirements.txt);
+     sem ele o bot roda igual, só sem o componente "grafo".
+  📊 AUTOAVALIAÇÃO — 24h após cada alerta de moeda, o bot
+     re-consulta o preço (DexScreener batch, sem pesar o ciclo)
+     e calcula o ROI real: sucesso = preço ≥ 2x. A precisão
+     diária sai no console: "precisão hoje X/Y (Z%)".
+Ajustes em radar/config.py:
+  SUCESSO_JANELA_SEG = 24*3600  → prazo p/ avaliar o alerta
+  SUCESSO_ROI_MIN = 1.0         → sucesso = ROI ≥ 100% (2x)
+  SCORE_ATIVO / GRAFO_ATIVO / AUTOAVALIACAO_ATIVA → liga/desliga
+(Opcional: arquivo .env ao lado do bot.py com BOT_TOKEN=... e
+CHAT_ID=... sobrescreve as credenciais do código — se não
+existir, valem os valores hardcoded, como sempre.)
+
+============================================================
+ AJUSTES OPCIONAIS (agora em radar/config.py)
+============================================================
+  INTERVALO = 12          → segundos entre verificações
+                            (12s é um bom equilíbrio; abaixe
+                            para 6-8s se quiser mais velocidade)
+  VALOR_MINIMO_USD = 1.0  → ignore movimentos abaixo disso
+
+============================================================
+ DICAS
+============================================================
+• Para rodar 24h sem deixar o PC ligado: use uma VPS
+  (ex: qualquer VPS barata de US$5) ou um Raspberry Pi.
+• No Windows, para o PC não dormir e matar o bot:
+  execute "powercfg /change standby-timeout-ac 0" no Prompt
+• Tudo que o bot faz fica gravado em radar.log (rotação
+  automática de 5 MB x 3 arquivos) — útil p/ revisar alertas
+  como administrador.
+• Se os RPCs públicos ficarem lentos em dias de muito tráfego,
+  crie uma chave grátis em helius.dev e troque o primeiro
+  endereço da lista RPCS pelo seu endpoint da Helius.
+============================================================
+
+
+============================================================
+PIPELINE OWNERSHIP + RUNTIME OBSERVABILITY (v9.6.1)
+============================================================
+
+Objetivo desta secao: acabar com "multiplas fontes de verdade". Hoje
+existem quatro pipelines no processo e cada uma tem dono definido.
+
+------------------------------------------------------------
+LEGACY (radar v4.8/v7.0) - UNICA PIPELINE OPERACIONAL
+------------------------------------------------------------
+source:       polling HTTP (radar/rpc.py) + fila do WebSocket legado
+consumer:     bot.ciclo() -> radar/analise.py
+persistence:  radar_dados.json (estado vivo) + radar_historico.db
+alert path:   radar/telegram.py  <-- SO ELA ALERTA
+responsavel:  descoberta de wallets, scoring, poda, alertas
+
+------------------------------------------------------------
+FOUNDATION (Fases 1.2-1.6)
+------------------------------------------------------------
+source:       raw_events de data_foundation.db
+consumer:     radar/foundation/worker.py (thread "foundation-worker")
+persistence:  data_foundation.db (entity state, retention)
+alert path:   NENHUM
+responsavel:  parsing, EntityState, retencao, query engine
+
+------------------------------------------------------------
+INGESTION V8 (Fase 1 da nova arquitetura) - SHADOW
+------------------------------------------------------------
+source:       WebSocket proprio + RPC proprio
+consumer:     thread "ingestion-v8"
+persistence:  data_foundation.db (raw_events, canonical_transactions)
+alert path:   NENHUM enquanto INGESTION_V8_MODE != active
+responsavel:  raw ingestion e canonicalizacao
+
+------------------------------------------------------------
+GRAPH (Fase 4)
+------------------------------------------------------------
+source:       eventos ja normalizados
+consumer:     radar/ingestion/graph/ (thread "graph-store")
+persistence:  arestas + edge_evidence na feature store
+alert path:   NENHUM
+responsavel:  relacoes entre wallets e funding graph
+
+------------------------------------------------------------
+AUDITORIA DE DOUBLE PROCESSING (requisito 18)
+------------------------------------------------------------
+A pergunta era: legacy + v8 processariam o mesmo evento duas vezes?
+
+EVENTO DUPLICADO:   SIM. As duas assinam os mesmos programas na Solana,
+                    entao a mesma signature chega nas duas.
+RPC DUPLICADO:      SIM. Sao clientes RPC distintos, sem cache comum.
+WRITE DUPLICADO:    NAO. Bancos e tabelas diferentes
+                    (radar_historico.db x data_foundation.db).
+DISCOVERY DUPLICADA:NAO. A v8 nao escreve em estado.WALLETS.
+ALERTA DUPLICADO:   NAO. Nao existe caminho de codigo da v8 ate
+                    radar/telegram.py.
+
+CONCLUSAO: ativar INGESTION_V8_MODE=active HOJE seria seguro quanto a
+alertas, mas dobraria o custo de RPC sem entregar valor operacional.
+Por isso o modo recomendado agora e "shadow": ele mede a diferenca
+entre as duas pipelines antes de qualquer migracao.
+
+INGESTION_V8_MODE:
+  off     nao inicia
+  shadow  ingere e persiste, mas nao alerta e nao toca no estado legado
+  active  pipeline operacional (NAO usar antes de validar o shadow)
+
+A flag antiga INGESTION_V8_ATIVO=True agora cai em SHADOW, nunca direto
+em operacional.
+
+------------------------------------------------------------
+ONDE OLHAR QUANDO O BOT DER PROBLEMA
+------------------------------------------------------------
+logs/runtime.log          log humano, com rotacao (20MB x 5)
+logs/runtime.jsonl        mesmo conteudo em JSON, para analise automatica
+logs/startup_report.txt   flags, bancos, componentes, RPC sanitizado
+logs/runs/<run_id>/       tudo acima, separado por execucao
+logs/crash_<timestamp>.txt  excecao nao tratada no processo principal
+logs/diagnostics_<ts>.txt   gerado por generate_diagnostic_snapshot()
+
+Banco corrompido? NAO apague nada. Rode:
+    python scripts/recover_sqlite.py radar_historico.db
+A ferramenta nunca altera o original: ela faz backup, recupera para um
+ARQUIVO NOVO, valida e gera relatorio. A troca e manual.
+
+============================================================
+ RPC: PUBLICO vs DEDICADO (v9.7.1)
+============================================================
+O endpoint publico (api.mainnet-beta.solana.com) serve para TESTE.
+Em operacao (backfill de gaps, historico), ele responde 429 (rate
+limit) por design — e ESPERADO, nao e falha do bot: o bot faz backoff
+com Retry-After, reduz a taxa e continua ate completar.
+
+Para operacao continua, defina ANTES de iniciar (nunca no codigo):
+    set RPC_HTTP_URL=https://seu-endpoint-dedicado
+    set RPC_WS_URL=wss://seu-endpoint-dedicado
+(Helius/QuickNode/Triton etc. Nunca cole a chave em arquivo do projeto.)
+
+============================================================
+ MODO DE OPERACAO: HEADLESS (PADRAO) vs PAINEL VISUAL (v9.7.3)
+============================================================
+O bot roda SEM janela por padrao — operacao continua 24/7, a janela
+nao segura mais o processo. Para abrir o painel visual:
+    set RADAR_GUI=1
+    INICIAR_BOT.bat
+Fechando a janela do painel: o encerramento e ORDENADO — o ciclo
+corrente termina, o estado e salvo, e o .bat NAO reinicia (exit 43).
+Se a janela for fechada DURANTE o boot, o bot apenas sai, sem tocar
+no estado. Queda inesperada: o .bat reinicia com backoff (teto: 5).
