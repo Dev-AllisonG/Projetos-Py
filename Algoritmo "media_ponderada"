@@ -1,0 +1,27 @@
+Algoritmo "media_ponderada"
+// Disciplina   : [Linguagem e Lógica de Programação]
+// Professor   : Antonio Carlos Nicolodi 
+// Descrição   : Aqui você descreve o que o programa faz! (função)
+// Autor(a)    : Nome do(a) aluno(a)
+// Data atual  : 20/08/2026
+Var
+   n, i : inteiro
+   x, y, z, soma, media : real
+
+
+Inicio
+          escreval("Quantos casos voce vai digitar? " )
+          leia(n)
+          
+          para i de 1 ate n faca
+               escreval("Digite tres numeros: " )
+               leia(x)
+               leia(y)
+               leia(z)
+               soma <- (x * 2) + (y * 3) + (z * 5)
+               media <- soma / 10
+               escreval("media= ", media)
+               fimpara
+
+
+Fimalgoritmo
